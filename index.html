@@ -2,10 +2,9 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Painel Texto</title>
+<title>Bloco de Notas</title>
 
 <style>
-
 body{
 background:#0f0f0f;
 color:#00ff9c;
@@ -24,8 +23,7 @@ margin:5px;
 
 textarea{
 width:80%;
-height:200px;
-resize:none;
+height:250px;
 }
 
 button:hover{
@@ -35,59 +33,41 @@ cursor:pointer;
 }
 
 #painel{display:none}
+.aba{display:none;margin-top:30px;}
 
-.aba{
-display:none;
-margin-top:30px;
-}
-
-ul{
-list-style:none;
-padding:0;
-}
+ul{list-style:none;padding:0;}
 
 li{
 padding:8px;
 border-bottom:1px solid #333;
 display:flex;
 justify-content:center;
-align-items:center;
 gap:10px;
-flex-wrap:wrap;
 }
-
 </style>
-
 </head>
 <body>
 
 <div id="login">
-
 <h2>ACESSO</h2>
-
-<input type="password" id="senha" placeholder="senha">
+<input type="password" id="senha">
 <br><br>
 <button onclick="entrar()">ENTRAR</button>
-
 <p id="erro"></p>
-
 </div>
-
 
 <div id="painel">
 
-<h2>PAINEL DE TEXTOS</h2>
+<h2>BLOCO DE NOTAS</h2>
 
-<button onclick="abrir('editor')">NOVO / EDITAR</button>
-<button onclick="abrir('lista')">TEXTOS</button>
+<button onclick="abrir('editor')">ESCREVER</button>
+<button onclick="abrir('lista')">VER TEXTOS</button>
 
 <div id="editor" class="aba">
 
-<h3>Editor</h3>
+<input type="text" id="nome" placeholder="nome do arquivo"><br>
 
-<input type="text" id="titulo" placeholder="Título"><br>
-
-<textarea id="conteudo" placeholder="Digite seu texto..."></textarea><br>
+<textarea id="texto" placeholder="Digite seu texto..."></textarea><br>
 
 <button onclick="salvar()">SALVAR</button>
 
@@ -95,14 +75,11 @@ flex-wrap:wrap;
 
 </div>
 
-
 <div id="lista" class="aba">
-
-<h3>Textos Salvos</h3>
 
 <button onclick="listar()">ATUALIZAR</button>
 
-<ul id="listaTextos"></ul>
+<ul id="listaTxt"></ul>
 
 </div>
 
@@ -111,107 +88,104 @@ flex-wrap:wrap;
 <script>
 
 const SENHA="roteirosdd"
-
-const URL_SCRIPT="https://script.google.com/macros/s/AKfycby0mu3MGFqcg7vT-0E2S6v8zVgyS6BYultmtmkhDhZcIVPkHcTSSGHHETmULQp9q1Wn/exec"
-
-let editandoID=null
-
+const URL="https://script.google.com/macros/s/AKfycby0mu3MGFqcg7vT-0E2S6v8zVgyS6BYultmtmkhDhZcIVPkHcTSSGHHETmULQp9q1Wn/exec"
 
 function entrar(){
-
 const s=document.getElementById("senha").value
 
 if(s===SENHA){
-document.getElementById("login").style.display="none"
-document.getElementById("painel").style.display="block"
+login.style.display="none"
+painel.style.display="block"
 abrir("editor")
 }else{
-document.getElementById("erro").innerText="senha incorreta"
+erro.innerText="senha incorreta"
 }
-
 }
-
 
 function abrir(nome){
-
 document.querySelectorAll(".aba").forEach(a=>a.style.display="none")
 document.getElementById(nome).style.display="block"
-
 }
-
 
 function salvar(){
 
-const titulo=document.getElementById("titulo").value
-const conteudo=document.getElementById("conteudo").value
+const nome=document.getElementById("nome").value + ".txt"
+const texto=document.getElementById("texto").value
 
-fetch(URL_SCRIPT,{
+const base64=btoa(unescape(encodeURIComponent(texto)))
+
+fetch(URL,{
 method:"POST",
 body:new URLSearchParams({
 senha:SENHA,
-titulo:titulo,
-conteudo:conteudo,
-id:editandoID
+nome:nome,
+tipo:"text/plain",
+file:base64
 })
 })
 .then(r=>r.text())
 .then(t=>{
-document.getElementById("status").innerText=t
-
-// limpa editor
-editandoID=null
-document.getElementById("titulo").value=""
-document.getElementById("conteudo").value=""
+status.innerText=t
 })
 
 }
 
-
 function listar(){
 
-fetch(URL_SCRIPT+"?listar=1")
+fetch(URL+"?listar=1")
 .then(r=>r.json())
 .then(lista=>{
 
-const ul=document.getElementById("listaTextos")
+const ul=document.getElementById("listaTxt")
 ul.innerHTML=""
 
-lista.forEach(txt=>{
+lista.forEach(arq=>{
 
 const li=document.createElement("li")
 
-const titulo=document.createElement("b")
-titulo.textContent=txt.titulo
+const nome=document.createElement("span")
+nome.textContent=arq.nome
+
+const abrir=document.createElement("button")
+abrir.textContent="👁"
+
+abrir.onclick=function(){
+fetch(arq.url)
+.then(r=>r.text())
+.then(txt=>{
+document.getElementById("texto").value=txt
+document.getElementById("nome").value=arq.nome.replace(".txt","")
+abrirAbaEditor()
+})
+}
 
 const editar=document.createElement("button")
 editar.textContent="✏️"
 
 editar.onclick=function(){
-abrir("editor")
-document.getElementById("titulo").value=txt.titulo
-document.getElementById("conteudo").value=txt.conteudo
-editandoID=txt.id
-}
 
-const del=document.createElement("button")
-del.textContent="🗑"
-
-del.onclick=function(){
-
-fetch(URL_SCRIPT,{
+fetch(URL,{
 method:"POST",
 body:new URLSearchParams({
 senha:SENHA,
-deletar:txt.id
+deletar:arq.id
 })
 })
-.then(()=>listar())
+.then(()=>{
+fetch(arq.url)
+.then(r=>r.text())
+.then(txt=>{
+document.getElementById("texto").value=txt
+document.getElementById("nome").value=arq.nome.replace(".txt","")
+abrir("editor")
+})
+})
 
 }
 
-li.appendChild(titulo)
+li.appendChild(nome)
+li.appendChild(abrir)
 li.appendChild(editar)
-li.appendChild(del)
 
 ul.appendChild(li)
 
