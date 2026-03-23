@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Painel</title>
+<title>Painel Texto</title>
 
 <style>
 
@@ -11,15 +11,21 @@ background:#0f0f0f;
 color:#00ff9c;
 font-family:monospace;
 text-align:center;
-margin-top:60px;
+margin-top:40px;
 }
 
-input,button{
+input,button,textarea{
 background:#111;
 border:1px solid #00ff9c;
 color:#00ff9c;
 padding:10px;
 margin:5px;
+}
+
+textarea{
+width:80%;
+height:200px;
+resize:none;
 }
 
 button:hover{
@@ -29,10 +35,6 @@ cursor:pointer;
 }
 
 #painel{display:none}
-
-.abas button{
-width:120px;
-}
 
 .aba{
 display:none;
@@ -51,11 +53,7 @@ display:flex;
 justify-content:center;
 align-items:center;
 gap:10px;
-}
-
-a{
-color:#00ff9c;
-text-decoration:none;
+flex-wrap:wrap;
 }
 
 </style>
@@ -78,34 +76,33 @@ text-decoration:none;
 
 <div id="painel">
 
-<h2>PAINEL</h2>
+<h2>PAINEL DE TEXTOS</h2>
 
-<div class="abas">
-<button onclick="abrir('upload')">UPLOAD</button>
-<button onclick="abrir('arquivos')">ARQUIVOS</button>
-</div>
+<button onclick="abrir('editor')">NOVO / EDITAR</button>
+<button onclick="abrir('lista')">TEXTOS</button>
 
+<div id="editor" class="aba">
 
-<div id="upload" class="aba">
+<h3>Editor</h3>
 
-<h3>Enviar arquivo</h3>
+<input type="text" id="titulo" placeholder="Título"><br>
 
-<input type="file" id="arquivo">
-<br><br>
-<button onclick="enviar()">ENVIAR</button>
+<textarea id="conteudo" placeholder="Digite seu texto..."></textarea><br>
+
+<button onclick="salvar()">SALVAR</button>
 
 <p id="status"></p>
 
 </div>
 
 
-<div id="arquivos" class="aba">
+<div id="lista" class="aba">
 
-<h3>Arquivos</h3>
+<h3>Textos Salvos</h3>
 
 <button onclick="listar()">ATUALIZAR</button>
 
-<ul id="lista"></ul>
+<ul id="listaTextos"></ul>
 
 </div>
 
@@ -115,7 +112,9 @@ text-decoration:none;
 
 const SENHA="roteirosdd"
 
-const URL_SCRIPT="https://script.google.com/macros/s/AKfycbwZhTKZux3yAR2UhLvlFtq_o40puVdmpz6XlXj22EIXyNytWb2Ixuh5v-Q9_UqWTZFs/exec"
+const URL_SCRIPT="https://script.google.com/macros/s/AKfycby0mu3MGFqcg7vT-0E2S6v8zVgyS6BYultmtmkhDhZcIVPkHcTSSGHHETmULQp9q1Wn/exec"
+
+let editandoID=null
 
 
 function entrar(){
@@ -123,67 +122,49 @@ function entrar(){
 const s=document.getElementById("senha").value
 
 if(s===SENHA){
-
 document.getElementById("login").style.display="none"
 document.getElementById("painel").style.display="block"
-
-abrir("upload")
-
+abrir("editor")
 }else{
-
 document.getElementById("erro").innerText="senha incorreta"
-
 }
 
 }
-
 
 
 function abrir(nome){
 
 document.querySelectorAll(".aba").forEach(a=>a.style.display="none")
-
 document.getElementById(nome).style.display="block"
 
 }
 
 
+function salvar(){
 
-function enviar(){
-
-const file=document.getElementById("arquivo").files[0]
-
-if(!file){
-alert("escolha um arquivo")
-return
-}
-
-const reader=new FileReader()
-
-reader.onload=function(){
-
-const base64=reader.result.split(",")[1]
+const titulo=document.getElementById("titulo").value
+const conteudo=document.getElementById("conteudo").value
 
 fetch(URL_SCRIPT,{
 method:"POST",
 body:new URLSearchParams({
 senha:SENHA,
-nome:file.name,
-tipo:file.type,
-file:base64
+titulo:titulo,
+conteudo:conteudo,
+id:editandoID
 })
 })
 .then(r=>r.text())
 .then(t=>{
 document.getElementById("status").innerText=t
+
+// limpa editor
+editandoID=null
+document.getElementById("titulo").value=""
+document.getElementById("conteudo").value=""
 })
 
 }
-
-reader.readAsDataURL(file)
-
-}
-
 
 
 function listar(){
@@ -192,22 +173,25 @@ fetch(URL_SCRIPT+"?listar=1")
 .then(r=>r.json())
 .then(lista=>{
 
-const ul=document.getElementById("lista")
+const ul=document.getElementById("listaTextos")
 ul.innerHTML=""
 
-lista.forEach(arq=>{
+lista.forEach(txt=>{
 
 const li=document.createElement("li")
 
-const link=document.createElement("a")
-link.href=arq.url
-link.textContent=arq.nome
-link.target="_blank"
+const titulo=document.createElement("b")
+titulo.textContent=txt.titulo
 
-const tamanho=(arq.tamanho/1024).toFixed(1)+" KB"
+const editar=document.createElement("button")
+editar.textContent="✏️"
 
-const info=document.createElement("span")
-info.textContent="("+tamanho+")"
+editar.onclick=function(){
+abrir("editor")
+document.getElementById("titulo").value=txt.titulo
+document.getElementById("conteudo").value=txt.conteudo
+editandoID=txt.id
+}
 
 const del=document.createElement("button")
 del.textContent="🗑"
@@ -218,18 +202,15 @@ fetch(URL_SCRIPT,{
 method:"POST",
 body:new URLSearchParams({
 senha:SENHA,
-deletar:arq.id
+deletar:txt.id
 })
 })
-.then(r=>r.text())
-.then(()=>{
-listar()
-})
+.then(()=>listar())
 
 }
 
-li.appendChild(link)
-li.appendChild(info)
+li.appendChild(titulo)
+li.appendChild(editar)
 li.appendChild(del)
 
 ul.appendChild(li)
