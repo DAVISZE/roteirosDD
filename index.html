@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Painel</title>
+
+<style>
+
+body{
+background:#0f0f0f;
+color:#00ff9c;
+font-family:monospace;
+text-align:center;
+margin-top:60px;
+}
+
+input,button{
+background:#111;
+border:1px solid #00ff9c;
+color:#00ff9c;
+padding:10px;
+margin:5px;
+}
+
+button:hover{
+background:#00ff9c;
+color:black;
+cursor:pointer;
+}
+
+#painel{display:none}
+
+.abas button{
+width:120px;
+}
+
+.aba{
+display:none;
+margin-top:30px;
+}
+
+ul{
+list-style:none;
+padding:0;
+}
+
+li{
+padding:8px;
+border-bottom:1px solid #333;
+display:flex;
+justify-content:center;
+align-items:center;
+gap:10px;
+}
+
+a{
+color:#00ff9c;
+text-decoration:none;
+}
+
+</style>
+
+</head>
+<body>
+
+<div id="login">
+
+<h2>ACESSO</h2>
+
+<input type="password" id="senha" placeholder="senha">
+<br><br>
+<button onclick="entrar()">ENTRAR</button>
+
+<p id="erro"></p>
+
+</div>
+
+
+<div id="painel">
+
+<h2>PAINEL</h2>
+
+<div class="abas">
+<button onclick="abrir('upload')">UPLOAD</button>
+<button onclick="abrir('arquivos')">ARQUIVOS</button>
+</div>
+
+
+<div id="upload" class="aba">
+
+<h3>Enviar arquivo</h3>
+
+<input type="file" id="arquivo">
+<br><br>
+<button onclick="enviar()">ENVIAR</button>
+
+<p id="status"></p>
+
+</div>
+
+
+<div id="arquivos" class="aba">
+
+<h3>Arquivos</h3>
+
+<button onclick="listar()">ATUALIZAR</button>
+
+<ul id="lista"></ul>
+
+</div>
+
+</div>
+
+<script>
+
+const SENHA="roteirosdd"
+
+const URL_SCRIPT="https://script.google.com/macros/s/AKfycbwZhTKZux3yAR2UhLvlFtq_o40puVdmpz6XlXj22EIXyNytWb2Ixuh5v-Q9_UqWTZFs/exec"
+
+
+function entrar(){
+
+const s=document.getElementById("senha").value
+
+if(s===SENHA){
+
+document.getElementById("login").style.display="none"
+document.getElementById("painel").style.display="block"
+
+abrir("upload")
+
+}else{
+
+document.getElementById("erro").innerText="senha incorreta"
+
+}
+
+}
+
+
+
+function abrir(nome){
+
+document.querySelectorAll(".aba").forEach(a=>a.style.display="none")
+
+document.getElementById(nome).style.display="block"
+
+}
+
+
+
+function enviar(){
+
+const file=document.getElementById("arquivo").files[0]
+
+if(!file){
+alert("escolha um arquivo")
+return
+}
+
+const reader=new FileReader()
+
+reader.onload=function(){
+
+const base64=reader.result.split(",")[1]
+
+fetch(URL_SCRIPT,{
+method:"POST",
+body:new URLSearchParams({
+senha:SENHA,
+nome:file.name,
+tipo:file.type,
+file:base64
+})
+})
+.then(r=>r.text())
+.then(t=>{
+document.getElementById("status").innerText=t
+})
+
+}
+
+reader.readAsDataURL(file)
+
+}
+
+
+
+function listar(){
+
+fetch(URL_SCRIPT+"?listar=1")
+.then(r=>r.json())
+.then(lista=>{
+
+const ul=document.getElementById("lista")
+ul.innerHTML=""
+
+lista.forEach(arq=>{
+
+const li=document.createElement("li")
+
+const link=document.createElement("a")
+link.href=arq.url
+link.textContent=arq.nome
+link.target="_blank"
+
+const tamanho=(arq.tamanho/1024).toFixed(1)+" KB"
+
+const info=document.createElement("span")
+info.textContent="("+tamanho+")"
+
+const del=document.createElement("button")
+del.textContent="🗑"
+
+del.onclick=function(){
+
+fetch(URL_SCRIPT,{
+method:"POST",
+body:new URLSearchParams({
+senha:SENHA,
+deletar:arq.id
+})
+})
+.then(r=>r.text())
+.then(()=>{
+listar()
+})
+
+}
+
+li.appendChild(link)
+li.appendChild(info)
+li.appendChild(del)
+
+ul.appendChild(li)
+
+})
+
+})
+
+}
+
+</script>
+
+</body>
+</html>
